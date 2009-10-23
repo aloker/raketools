@@ -6,8 +6,11 @@ common: &common
 # environment overrides
 development: 
   <<: *common  
+  build:
+    verbose: true
+    config: "Debug"
     
 production: 
   <<: *common
-  build:
-    verbose: true
+    config: "Release"
+
