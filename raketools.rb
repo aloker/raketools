@@ -327,12 +327,19 @@ module Raketools
       log(__method__, "No projects found")
       return
     end
-    projects.each do |project|
-      project_file = project[:file]
-      log(__method__, "Analyzing #{project[:output_file]}")   
+    
+    solutions = get_solutions().collect{ |k,v| v }
+    if solutions.length == 0
+      log(__method__, "No solutions found")
+      return
+    end
+    
+    solutions.each do |solution|
+      solution_file = solution[:file]
+      log(__method__, "Analyzing #{File.basename(solution[:file])}")   
       
       # try to determine the ignore file
-      probe_dir = File.dirname(project_file)
+      probe_dir = File.dirname(solution_file)
       ignore_file = nil
       while probe_dir.split(/[\/\\]/).length >= min_depth
         probe_path = File.join(probe_dir, configatron.gendarme.ignorefile)
@@ -340,14 +347,15 @@ module Raketools
         probe_dir = File.dirname(probe_dir)
       end
       switches = {
-        :xml => report('Gendarme', File.filename_without_ext(project_file)).to_argpath,
+        :xml => report('Gendarme', File.filename_without_ext(solution_file)).to_argpath,
         :quiet => configatron.build.verbose == false
       }
       switches[:ignore] = ignore_file.to_argpath if not ignore_file.nil?
       
       switches.merge!(options.fetch(:switches, {}))
       switch_args = make_switches(switches, ' ', '--')      
-      cmd = "#{gendarme_exe.to_argpath} #{switch_args} #{project[:output_path].to_argpath}"
+      project_args = projects.collect{|p| p[:output_path].to_argpath}.join(' ')
+      cmd = "#{gendarme_exe.to_argpath} #{switch_args} #{project_args}"
       run cmd
     end
   end  
