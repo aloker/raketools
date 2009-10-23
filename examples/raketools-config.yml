@@ -1,0 +1,13 @@
+common: &common
+  product:
+    version: '1.2.3.4'
+    
+    
+# environment overrides
+development: 
+  <<: *common  
+    
+production: 
+  <<: *common
+  build:
+    verbose: true
