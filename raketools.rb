@@ -34,7 +34,9 @@ module Raketools
                     :reports    => '$(output)/reports', 
                     :tools      => 'tools'},
       :build   => { :config     => 'Release',
-                    :verbose    => false},
+                    :verbose    => false,
+                    :keyfile    => nil,
+                    :delaysign  => false},
       :test    => { :coverage   => true, 
                     :enabled    => true },
       :tool    => { :nunit      => '$(tools)/nunit/bin/net-2.0/nunit-console.exe',
@@ -173,7 +175,17 @@ module Raketools
       properties = { 
         :OutputPath => configatron.dir.build.to_argpath,
         :Configuration => configatron.build.config
-      }              
+      }     
+      if !configatron.build.keyfile.nil?
+        keyfile = configatron.build.keyfile.to_absolute
+        if not File.exists? keyfile
+          log(__method__, "Could not find key file #{keyfile}, skipping assembly signing")
+        else
+          properties[:SignAssembly] = 'true'
+          properties[:AssemblyOriginatorKeyFile] = keyfile.to_argpath
+          properties[:DelaySign] = configatron.build.delaysign
+        end
+      end            
       properties.merge!(options.fetch(:properties, {}))   
       
       switches = { 
@@ -181,6 +193,9 @@ module Raketools
         :maxcpucount => true, 
         :verbosity => configatron.build.verbose ? 'normal' : 'minimal' 
       }      
+      
+     
+      
       switches.merge!( options.fetch(:switches, {}))
       
      
