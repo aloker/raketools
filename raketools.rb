@@ -139,6 +139,10 @@ module Raketools
               result = git_commit_count_in_branch()
             when 'BRANCH'
               result = git_current_branch()
+            when 'HASH'
+              result = git_current_commit_hash(false)
+            when 'SHORTHASH'
+              result = git_current_commit_hash(true)
           end
         when 'VER'
           case value
@@ -176,8 +180,15 @@ module Raketools
             when 'ENV'
               result = ENV.fetch(value, 0).to_i
             when 'GIT'
-              if value == 'COMMITS'
-                result = git_commit_count_in_branch()
+              case value          
+                when 'COMMITS'
+                  result = git_commit_count_in_branch()
+                when 'BRANCH'
+                  result = git_current_branch()
+                when 'HASH'
+                  result = git_current_commit_hash(false)
+                when 'SHORTHASH'
+                  result = git_current_commit_hash(true)
               end
             when 'VER'
               log(__message__, '$(VER) is not available in product.version')
@@ -566,6 +577,16 @@ module Raketools
   def Raketools.git_commit_count_in_branch()
     `git rev-list HEAD | wc -l`.to_i
   end
+  
+  def Raketools.git_current_commit_hash(abbreviate)
+    if abbreviate
+      return `git rev-parse --short=4 HEAD` .strip()
+    else
+      return `git rev-parse HEAD`.strip()
+    end
+  end
+
+  
   def Raketools.git_current_branch()
     `git branch --no-color`.each_line.select{|l| l =~ /^\*\s/ }.collect{|l| l.sub(/^\*/, '')}[0].strip()
   end
