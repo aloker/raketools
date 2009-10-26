@@ -135,9 +135,9 @@ module Raketools
         when 'GIT'
           case value          
             when 'COMMITS'
-              result = `git rev-list --all | wc -l`.to_i
+              result = git_commit_count_in_branch()
             when 'BRANCH'
-              result = `git branch --no-color`.each_line.select{|l| l =~ /^\*\s/ }.collect{|l| l.sub(/^\*/, '')}[0].strip()
+              result = git_current_branch()
           end
         when 'VER'
           case value
@@ -158,6 +158,7 @@ module Raketools
     return version
   end
   
+  
   def Raketools.parse_numeric_version()
     major, minor, build, revision = configatron.product.version.to_s.split('.')
     res = [major, minor, build, revision].collect do |part|
@@ -175,7 +176,7 @@ module Raketools
               result = ENV.fetch(value, 0).to_i
             when 'GIT'
               if value == 'COMMITS'
-                result = `git rev-list --all | wc -l`.to_i
+                result = git_commit_count_in_branch()
               end
             when 'VER'
               log(__message__, '$(VER) is not available in product.version')
@@ -558,6 +559,15 @@ module Raketools
       Kernel.system cmd    
     end
   end
+  
+  # GIT CALLS
+  def Raketools.git_commit_count_in_branch()
+    `git rev-list HEAD | wc -l`.to_i
+  end
+  def Raketools.git_current_branch()
+    `git branch --no-color`.each_line.select{|l| l =~ /^\*\s/ }.collect{|l| l.sub(/^\*/, '')}[0].strip()
+  end
+
 end
 
 
