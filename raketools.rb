@@ -123,16 +123,21 @@ module Raketools
   
   def Raketools.build_version(version)
     version = version.to_s
-    version.gsub!( /\$\((.+):(.+)\)/) do |m| 
+    
+    version.gsub!( /\$\(([^:]+):([^\)]+)\)/) do |m|      
       key = $1
       value = $2
-      result = ''
+      puts "#{key} - #{value}"
+      result = ''      
       case key
         when 'ENV'
           result = ENV.fetch(value, '')
         when 'GIT'
-          if value == 'COMMITS'
-            result = `git rev-list --all | wc -l`.to_i
+          case value          
+            when 'COMMITS'
+              result = `git rev-list --all | wc -l`.to_i
+            when 'BRANCH'
+              result = `git branch --no-color`.each_line.select{|l| l =~ /^\*\s/ }.collect{|l| l.sub(/^\*/, '')}[0].strip()
           end
         when 'VER'
           case value
