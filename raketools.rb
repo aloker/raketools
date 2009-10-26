@@ -36,7 +36,7 @@ module Raketools
                     :source     => 'source', 
                     :reports    => '$(output)/reports', 
                     :tools      => 'tools'},
-      :build   => { :config     => 'Release',
+      :build   => { :config     => 'Debug',
                     :verbose    => false,
                     :keyfile    => nil,
                     :delaysign  => false},
@@ -51,6 +51,7 @@ module Raketools
       :analysis => {:enabled    => true },
       :gendarme => {:ignorefile => 'Gendarme.ignore' }    
     }    
+    
     configatron.configure_from_hash(defaults)        
     load_config(ENV.fetch('RT_PROJECTCONFIG', 'raketools-config.yml'), environment)
     load_config(ENV.fetch('RT_LOCALCONFIG', 'local-config.yml'), environment)    
@@ -211,7 +212,8 @@ module Raketools
       attributes = { 
         :AssemblyVersion => configatron.product.assemblyversion,        
         :AssemblyFileVersion => configatron.product.fileversion,
-        :AssemblyInformationalVersion => configatron.product.informationalversion
+        :AssemblyInformationalVersion => configatron.product.informationalversion,
+        :AssemblyConfiguration => configatron.build.config
       }
       log(__method__, "Generating #{file}")
       template = %q{

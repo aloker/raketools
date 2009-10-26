@@ -1,16 +1,16 @@
 common: &common
   product:
-    version: '1.2.3.4'
+    version: '0.1.0.$(GIT:COMMITS)'
+    informationalversion: '$(VER:ALL)-$(GIT:BRANCH) build $(ENV:CCNetLabel)'
     
     
 # environment overrides
 development: 
   <<: *common  
   build:
-    verbose: true
     config: "Debug"
     
 production: 
   <<: *common
+  build:
     config: "Release"
-
