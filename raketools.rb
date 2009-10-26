@@ -27,7 +27,10 @@ module Raketools
     environment = ENV.fetch('RT_ENVIRONMENT', nil) if environment.nil?
     
     defaults = \
-    { :product => { :version    => '1.0.0.ENV:BUILD_NUMBER' },
+    { :product => { :version     => '1.0.0.$(ENV:BUILD_NUMBER)',
+                    :assemblyversion      => '$(VER:ALL)',
+                    :fileversion          => '$(VER:ALL)',
+                    :informationalversion => '$(VER:ALL)'},
       :dir     => { :output     => 'build',
                     :build      => '$(output)/bin', 
                     :source     => 'source', 
@@ -110,27 +113,78 @@ module Raketools
     configatron.build.config = which
   end
   
-  def Raketools.resolve_version()
-    major, minor, build, revision = configatron.product.version.split('.')
-    res = [major, minor, build, revision].collect do |part|
-      result = -1
-      if part.match(/^\d+$/)      
-        result = part.to_i
-      else      
-        key,value = part.split(':')        
-        if key == 'ENV'
-          result = ENV.fetch(value, 0).to_i
-        elsif key == 'GIT'
+  def Raketools.resolve_version()   
+    configatron.product.version = parse_numeric_version()
+    # build derived versions
+    configatron.product.assemblyversion = build_version(configatron.product.assemblyversion)
+    configatron.product.fileversion = build_version(configatron.product.fileversion )
+    configatron.product.informationalversion = build_version(configatron.product.informationalversion)
+  end
+  
+  def Raketools.build_version(version)
+    version = version.to_s
+    version.gsub!( /\$\((.+):(.+)\)/) do |m| 
+      key = $1
+      value = $2
+      result = ''
+      case key
+        when 'ENV'
+          result = ENV.fetch(value, '')
+        when 'GIT'
           if value == 'COMMITS'
             result = `git rev-list --all | wc -l`.to_i
           end
+        when 'VER'
+          case value
+            when 'ALL'
+              result = configatron.product.version
+            when 'MAJOR'
+              result = configatron.product.version.split('.')[0]
+            when 'MINOR'
+              result = configatron.product.version.split('.')[1]
+            when 'BUILD'
+              result = configatron.product.version.split('.')[2]
+            when 'REVISION'
+              result = configatron.product.version.split('.')[3]
+          end              
+      end
+      result
+    end
+    return version
+  end
+  
+  def Raketools.parse_numeric_version()
+    major, minor, build, revision = configatron.product.version.to_s.split('.')
+    res = [major, minor, build, revision].collect do |part|
+      result = -1
+      part = '0' if part.nil?
+      if part.match(/^\d+$/)      
+        result = part.to_i
+      else      
+        part.gsub!( /\$\((.+):(.+)\)/) do |m| 
+          key = $1
+          value = $2
+          result = ''
+          case key
+            when 'ENV'
+              result = ENV.fetch(value, 0).to_i
+            when 'GIT'
+              if value == 'COMMITS'
+                result = `git rev-list --all | wc -l`.to_i
+              end
+            when 'VER'
+              log(__message__, '$(VER) is not available in product.version')
+          end
+          result
         end
       end
       raise "Could not parse #{part} in #{configatron.product.version}" if result < 0
       result
     end    
-    configatron.product.version = res.join('.')
+    return res.join('.')
   end
+    
+  
   
   def Raketools.init()  
     return if @initialized
@@ -149,9 +203,9 @@ module Raketools
       file = File.join(dir, "VersionInfo.cs") if !Dir.exists?(probe_properties)
       file = File.join(probe_properties, "VersionInfo.cs") if Dir.exists?(probe_properties)
       attributes = { 
-        :AssemblyVersion => configatron.product.version,        
-        :AssemblyFileVersion => configatron.product.version,
-        :AssemblyInformationalVersion => configatron.product.version
+        :AssemblyVersion => configatron.product.assemblyversion,        
+        :AssemblyFileVersion => configatron.product.fileversion,
+        :AssemblyInformationalVersion => configatron.product.informationalversion
       }
       log(__method__, "Generating #{file}")
       template = %q{
