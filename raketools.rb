@@ -466,7 +466,7 @@ module Raketools
     end
     all_files = all_files.join(' ')    
     switches = {
-      :excludes =>  ["AssemblyInfo.*", "VersionInfo.*"].collect { |file| File.join(configatron.dir.source, "**", file).to_argpath},
+      :excludes =>  ["AssemblyInfo.*", "VersionInfo.*", "*.designer.*"].collect { |file| File.join(configatron.dir.source, "**", file).to_argpath},
       :failOnDuplication => false,
       :reportDuplicateText => true,
       :threshold => 6,
