@@ -128,7 +128,6 @@ module Raketools
     version.gsub!( /\$\(([^:]+):([^\)]+)\)/) do |m|      
       key = $1
       value = $2
-      puts "#{key} - #{value}"
       result = ''      
       case key
         when 'ENV'
