@@ -122,7 +122,7 @@ module Raketools
     configatron.product.informationalversion = build_version(configatron.product.informationalversion)
   end
   
-  def Raketools.build_version(version)
+  def Raketools.build_version(version,allow_version_prefix=true)
     version = version.to_s
     
     version.gsub!( /\$\(([^:]+):([^\)]+)\)/) do |m|      
@@ -142,8 +142,21 @@ module Raketools
               result = git_current_commit_hash(false)
             when 'SHORTHASH'
               result = git_current_commit_hash(true)
+            when 'DESCRIBE-VERSION-1'
+              result = git_describe_version(1).join('.')
+            when 'DESCRIBE-VERSION-2'
+              result = git_describe_version(2).join('.')
+            when 'DESCRIBE-VERSION-3'
+              result = git_describe_version(3).join('.')
+            when 'DESCRIBE-VERSION-4'
+              result = git_describe_version(4).join('.')
+            when 'DESCRIBE-COMMITS'
+              result = git_describe_commits()
           end
         when 'VER'
+          if not allow_version_prefix
+            raise 'VER prefix is not allowed in this version number'
+          end
           case value
             when 'ALL'
               result = configatron.product.version
@@ -161,43 +174,11 @@ module Raketools
     end
     return version
   end
-  
-  
+    
   def Raketools.parse_numeric_version()
-    major, minor, build, revision = configatron.product.version.to_s.split('.')
-    res = [major, minor, build, revision].collect do |part|
-      result = -1
-      part = '0' if part.nil?
-      if part.match(/^\d+$/)      
-        result = part.to_i
-      else      
-        part.gsub!( /\$\((.+):(.+)\)/) do |m| 
-          key = $1
-          value = $2
-          result = ''
-          case key
-            when 'ENV'
-              result = ENV.fetch(value, 0).to_i
-            when 'GIT'
-              case value          
-                when 'COMMITS'
-                  result = git_commit_count_in_branch()
-                when 'BRANCH'
-                  result = git_current_branch()
-                when 'HASH'
-                  result = git_current_commit_hash(false)
-                when 'SHORTHASH'
-                  result = git_current_commit_hash(true)
-              end
-            when 'VER'
-              log(__message__, '$(VER) is not available in product.version')
-          end
-          result
-        end
-      end
-      raise "Could not parse #{part} in #{configatron.product.version}" if result < 0
-      result
-    end    
+    preprocessed_version = build_version(configatron.product.version, false)    
+    major, minor, build, revision = preprocessed_version.split('.')
+    res = [major, minor, build, revision].collect { |part| part.to_i}
     return res.join('.')
   end
     
@@ -579,19 +560,28 @@ module Raketools
   
   def Raketools.git_current_commit_hash(abbreviate)
     if abbreviate
-      return `git rev-parse --short=4 HEAD` .strip()
+      return `git rev-parse --short=8 HEAD` .strip()
     else
       return `git rev-parse HEAD`.strip()
     end
   end
-
   
   def Raketools.git_current_branch()
     `git branch --no-color`.each_line.select{|l| l =~ /^\*\s/ }.collect{|l| l.sub(/^\*/, '')}[0].strip()
   end
-
+  
+    def Raketools.git_describe_version(depth)
+    describe = `git describe --tags`
+    match = /^(?:v?)(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\.(\d+))?/ix.match(describe)
+    (match ? match.captures.collect { |c| c.to_i } : [0,0,0,0]).slice(0..(depth-1))          
+  end 
+  
+  def Raketools.git_describe_commits()
+    describe = `git describe --tags`
+    match = /^(?:v?\d+(?:\.\d+)?(?:\.\d+)?(?:\.\d+)?)-(\d+)/ix.match(describe)
+    return match ? match.captures[0].to_i : 0
+  end  
 end
-
 
 class Rake::Task
 	old_execute = self.instance_method(:execute)	
