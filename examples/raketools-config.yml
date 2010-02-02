@@ -1,7 +1,7 @@
 common: &common
   product:
-    version: '0.1.0.$(GIT:COMMITS)'
-    informationalversion: '$(VER:ALL)-$(GIT:BRANCH) build $(ENV:CCNetLabel)'
+    version: '$(GIT:DESCRIBE-VERSION-3).$(GIT:DESCRIBE-COMMITS)'
+    informationalversion: '$(VER:ALL)/$(GIT:SHORTHASH)-$(GIT:BRANCH) build $(ENV:CCNetLabel)'
     
     
 # environment overrides
