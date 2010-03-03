@@ -40,6 +40,7 @@ module Raketools
                     :verbose    => false,
                     :keyfile    => nil,
                     :delaysign  => false},
+	  :generate =>{ :versioninfohead => ''},
       :test    => { :coverage   => true, 
                     :enabled    => true },
       :tool    => { :nunit      => '$(tools)/nunit/bin/net-2.0/nunit-console.exe',
@@ -208,7 +209,10 @@ module Raketools
       }
       log(__method__, "Generating #{file}")
       template = %q{
-          // This file is generated automatically. Do not edit manually.
+          <%= configatron.generate.versioninfohead %>
+		  //
+		  // This file is generated automatically. Do not edit manually.
+          //
           using System;
           using System.Reflection;
           using System.Runtime.InteropServices;
@@ -217,7 +221,7 @@ module Raketools
             [assembly: <%= key %>("<%= value %>")]
           <% end %>
         }.gsub(/^\s+/, '')
-        erb = ERB.new(template, 0, "%<>")       
+        erb = ERB.new(template, 0, "%")       
         File.open(file, 'w') do |f|
           f.puts erb.result(binding)
         end
