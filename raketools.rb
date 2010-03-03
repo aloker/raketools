@@ -532,7 +532,7 @@ module Raketools
     else
         inputs = inputs.collect { |inp| File.join(configatron.dir.build, inp)}        
     end
-    inputs = inputs.collect{|inp|inp.to_argpath}.join(' ')
+    inputargs = inputs.collect{|inp|inp.to_argpath}.join(' ')
     
     # determine output
     output = File.join(configatron.dir.build, options.fetch(:output, "#{File.filename_without_ext(options[:primary])}.Merged#{File.extname(options[:primary])}"))
@@ -548,8 +548,8 @@ module Raketools
     opts = {} if opts.nil?
     switches = make_switches(opts, '/', '=', true)
     
-    ilmerge_cmd = "#{ilmerge_exe} #{switches} /out:#{output} #{primary} #{inputs}"
-    
+    ilmerge_cmd = "#{ilmerge_exe} #{switches} /out:#{output} #{primary} #{inputargs}"
+    log(__method__, "Merging #{1+inputs.length} assemblies to #{output}")
     run ilmerge_cmd
     
   end
