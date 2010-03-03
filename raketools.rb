@@ -210,9 +210,7 @@ module Raketools
       log(__method__, "Generating #{file}")
       template = %q{
           <%= configatron.generate.versioninfohead %>
-		  //
 		  // This file is generated automatically. Do not edit manually.
-          //
           using System;
           using System.Reflection;
           using System.Runtime.InteropServices;
