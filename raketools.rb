@@ -526,7 +526,7 @@ module Raketools
   end
   
   def Raketools.report(cat, name=nil, ext="xml")
-    File.join(configatron.dir.reports, "#{cat}#{"-#{name}" unless name.nil?}.#{ext}")
+    File.expand_path(File.join(configatron.dir.reports, "#{cat}#{"-#{name}" unless name.nil?}.#{ext}"))
   end
   
   def Raketools.make_switches(switches, sep=':', prefix='/')    
