@@ -297,17 +297,26 @@ module Raketools
     candidates.each do |assembly|
       log(__method__, "Running tests in #{assembly}")
       assembly = assembly.to_absolute
-      switches = { :nologo => true,  
-                   :noshadow => true, 
-                   :domain=>'none',
-                   :xml => report('NUnit', File.basename(assembly))}
-      switches.merge!(options.fetch(:options, {}))
-      argstring = make_switches( switches, '=' )
-      nunit_cmd = "#{nunit_exe} #{assembly.to_argpath} #{argstring}"
-      
-      if !options.fetch(:coverage, configatron.test.coverage) || ncover_exe == nil        
+      report_file =  report('NUnit', File.basename(assembly))
+            
+      if !options.fetch(:coverage, configatron.test.coverage) || ncover_exe == nil    
+        nunit_switches = { :nologo => true,  
+                           :noshadow => true, 
+                           :domain=>'single', # otherwise we need to copy the NUnit assemblies to output dir
+                           :xml => report_file}
+        nunit_switches.merge!(options.fetch(:options, {}))
+        argstring = make_switches( nunit_switches, '=' )
+        nunit_cmd = "#{nunit_exe} #{assembly.to_argpath} #{argstring}"  
         run nunit_cmd
       else      
+         nunit_switches = { :nologo => true,  
+                            :noshadow => true, 
+                            :domain=>'none',
+                            :xml => report_file}
+        nunit_switches.merge!(options.fetch(:options, {}))
+        argstring = make_switches( nunit_switches, '=' )
+        nunit_cmd = "#{nunit_exe} #{assembly.to_argpath} #{argstring}"
+        
         switches = {
           :x => report('NCover', File.basename(assembly)), # xml output file
           :ea =>  "CoverageExcludeAttribute",  # exclude attribute
