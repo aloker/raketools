@@ -48,7 +48,8 @@ module Raketools
                     :stylecop   => '$(tools)/stylecopcmd/stylecopcmd.exe',
                     :gendarme   => '$(tools)/gendarme/gendarme.exe',
                     :simian     => '$(tools)/simian/bin/simian.exe',
-                    :fxcop      => '$(tools)/fxcop/FxCopCmd.exe'},
+                    :fxcop      => '$(tools)/fxcop/FxCopCmd.exe',
+                    :ilmerge    => '$(tools)/ilmerge/ILMerge.exe'},
       :analysis => {:enabled    => true },
       :gendarme => {:ignorefile => 'Gendarme.ignore' }    
     }    
@@ -468,6 +469,91 @@ module Raketools
     run cmd
   end  
 
+  # Merges multiple assemblies into one.  
+  #
+  # Either include_pattern or inputs are required.
+  #
+  # options:
+  #  :primary         => name of the output assembly
+  #  :include_pattern => inclusion pattern (glob)
+  #  :exclude_pattern => exclusion pattern (glob)
+  #  :inputs          => additional files to merge
+  #  :output          => output file name
+  #  switches => {
+  #      :lib            => search dirs (array),
+  #      :log            => true|false or log file,
+  #      :keyfile        => key file,
+  #      :delaysign      => true|false,
+  #      :internalize    => true|false or name of exclude file,
+  #      :target         => exe|winexe|library,
+  #      :closed         => true|false,
+  #      :ndebug         => true|false,
+  #      :ver            => new version,
+  #      :copyattrs      => true|false,
+  #      :allowMultiple  => true|false,
+  #      :xmldocs        => true|false,
+  #      :attr           => attribute file,
+  #      :targetplatform => 'v1|v1.1|v2|v4',
+  #      :useFullPublicKeyForReferences => true,
+  #      :zeroPeKind     => true|false,
+  #      :wildcards      => true|false,
+  #      :allowDup       => duplicate names (array),
+  #      :union          => true|false,
+  #      :align          => file alignment in bytes        
+  #  }
+  #
+  # Typical example:
+  #
+  # Raketools.ilmerge({
+  #  :primary => 'MyApp.exe',
+  #  :include_pattern => 'MyApp.*.dll',    
+  #  :exclude_pattern => '*.Tests.dll'
+  # })
+  #
+  # Merges MyApp and all libraries starting with MyApp.
+  # except test assemblies into MyApp.Merged.exe  
+  #
+  #
+  def Raketools.ilmerge(options = {})    
+   
+    if !options.has_key?(:primary)
+        raise "ilmerge: option 'primary' required"
+    end
+    
+    primary = File.join(configatron.dir.build, options[:primary]).to_argpath
+    
+    # determine inputs
+    inputs = options[:inputs]    
+    if inputs.nil?
+        raise "You need to provide an include or a specific include list" if !(options.has_key?(:include_pattern) or options.has_key?(:exclude_pattern))
+        # auto collect inputs
+        inputs = Dir.glob(File.join(configatron.dir.build, options[:include_pattern]))
+        inputs = inputs - Dir.glob(File.join(configatron.dir.build, options[:exclude_pattern])) if options.has_key?(:exclude_pattern)
+    else
+        inputs = inputs.collect { |inp| File.join(configatron.dir.build, inp)}        
+    end
+    inputs = inputs.collect{|inp|inp.to_argpath}.join(' ')
+    
+    # determine output
+    output = File.join(configatron.dir.build, options.fetch(:output, "#{File.filename_without_ext(options[:primary])}.Merged#{File.extname(options[:primary])}"))
+    output = output.to_argpath
+    
+    ilmerge_exe = Raketools.get_tool('ilmerge')
+    
+    if ilmerge_exe.nil?
+        raise "Could not find ILMerge.exe"
+    end
+    
+    opts = options[:switches]
+    opts = {} if opts.nil?
+    switches = make_switches(opts, '/', '=', true)
+    
+    ilmerge_cmd = "#{ilmerge_exe} #{switches} /out:#{output} #{primary} #{inputs}"
+    
+    run ilmerge_cmd
+    
+  end
+  
   def Raketools.get_projects()
     return @projects if !@projects.nil?
     
@@ -529,27 +615,30 @@ module Raketools
     File.expand_path(File.join(configatron.dir.reports, "#{cat}#{"-#{name}" unless name.nil?}.#{ext}"))
   end
   
-  def Raketools.make_switches(switches, sep=':', prefix='/')    
+  def Raketools.make_switches(switches, sep=':', prefix='/', quote=false)    
     switches.collect do |key, value| 
-      (value.is_a? Array) ? value.collect { |v| render_switch(key, v, sep, prefix) }.join(' ') :  render_switch(key, value, sep, prefix)
+      (value.is_a? Array) ? value.collect { |v| render_switch(key, v, sep, prefix,quote) }.join(' ') :  render_switch(key, value, sep, prefix,quote)
     end.join(" ")
   end
   
-  def Raketools.make_switches_with_bool(switches, sep=':', prefix='/')
+  def Raketools.make_switches_with_bool(switches, sep=':', prefix='/', quote=false)
     switches.collect do |key, value| 
-      (value.is_a? Array) ? value.collect { |v| render_switch_bool(key, v, sep, prefix) }.join(' ') :  render_switch_bool(key, value, sep, prefix)
+      (value.is_a? Array) ? value.collect { |v| render_switch_bool(key, v, sep, prefix, quote) }.join(' ') :  render_switch_bool(key, value, sep, prefix, quote)
     end.join(" ")
   end
   
-  def Raketools.render_switch(key,value,sep,prefix)
-    "#{prefix}#{key}#{"#{sep}#{value}" unless value.kind_of? TrueClass or value.kind_of? FalseClass}" if value 
+  def Raketools.render_switch(key,value,sep,prefix,quote)
+    res = "#{prefix}#{key}#{"#{sep}#{value}" unless value.kind_of? TrueClass or value.kind_of? FalseClass}" if value 
+    res = "\"#{res}\"" if quote
+    res    
   end
   
-  def Raketools.render_switch_bool(key,value,sep,prefix)
+  def Raketools.render_switch_bool(key,value,sep,prefix,quote)
     res = "#{prefix}#{key}+"  if value.kind_of? TrueClass
     res = "#{prefix}#{key}-"  if value.kind_of? FalseClass
     res = "#{prefix}#{key}#{sep}#{value}" unless (value.kind_of? TrueClass or  value.kind_of? FalseClass)
-    res
+    res = "\"#{res}\"" if quote
+    res 
   end
   
   def Raketools.log(name, message)
@@ -591,7 +680,8 @@ module Raketools
     describe = `git describe --tags`
     match = /^(?:v?\d+(?:\.\d+)?(?:\.\d+)?(?:\.\d+)?)-(\d+)/ix.match(describe)
     return match ? match.captures[0].to_i : 0
-  end  
+  end   
+  
 end
 
 class Rake::Task
