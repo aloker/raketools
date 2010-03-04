@@ -7,8 +7,9 @@ require 'rexml/xpath'
 CLEAN.clear if defined? CLEAN and CLEAN.respond_to? :clear
 CLOBBER.clear if defined? CLOBBER and CLOBBER.respond_to? :clear
 
+task :clean => [:init]
 
-task :clobber do
+task :clobber => [:init] do
   sleep(0.2)
 end
 
@@ -183,20 +184,24 @@ module Raketools
     res = [major, minor, build, revision].collect { |part| part.to_i}
     return res.join('.')
   end
-    
-  
   
   def Raketools.init()  
     return if @initialized
     configure()
     configatron.protect_all!
+    @initialized = true
+    CLEAN << configatron.dir.build
+    CLEAN << configatron.dir.reports
+  end 
+  
+  def Raketools.prepare_build()
     FileUtils.mkdir_p (configatron.dir.output)
     FileUtils.mkdir_p (configatron.dir.build)
     FileUtils.mkdir_p (configatron.dir.reports)  
-    @initialized = true
-  end 
+  end
   
   def Raketools.versioninfo(options = {})
+    Raketools.prepare_build()
     Dir.glob(File.join(configatron.dir.source, "**", "*.csproj")).each do |project|
       dir = File.dirname(project).to_absolute
       probe_properties = File.join(dir, 'Properties')      
@@ -228,6 +233,7 @@ module Raketools
   end
   
   def Raketools.msbuild(options = {}) 
+      Raketools.prepare_build()
       properties = { 
         :OutputPath => configatron.dir.build.to_argpath,
         :Configuration => configatron.build.config
@@ -250,10 +256,7 @@ module Raketools
         :verbosity => configatron.build.verbose ? 'normal' : 'minimal' 
       }      
       
-     
-      
-      switches.merge!( options.fetch(:switches, {}))
-      
+      switches.merge!( options.fetch(:switches, {}))      
      
       loggerpath  = File.join(configatron.dir.tools, 'msbuildlogger', 'Rodemeyer.MsBuildToCCnet.dll')
       enable_logger =  File.exists? (loggerpath)
@@ -276,8 +279,9 @@ module Raketools
       end      
   end
   
-  def Raketools.nunit(options = {})
+  def Raketools.nunit(options = {})    
     return if not configatron.test.enabled 
+    Raketools.prepare_build()
     
     nunit_exe = Raketools.get_tool('nunit')    
     if nunit_exe.nil?
@@ -336,6 +340,7 @@ module Raketools
   
   def Raketools.fxcop(options = {})
     return if not configatron.analysis.enabled 
+    Raketools.prepare_build()
     fxcop_exe = get_tool('fxcop')
     if fxcop_exe.nil?
       log(__method__, 'FxCop not found. Skipping analysis.')
@@ -364,6 +369,7 @@ module Raketools
   
   def Raketools.stylecop(options={})
     return if not configatron.analysis.enabled 
+    Raketools.prepare_build()
     stylecmd_exe = get_tool('stylecop')
     if stylecmd_exe == nil
       log(__method__, 'StyleCopCmd not found. Skipping analysis.')
@@ -390,6 +396,7 @@ module Raketools
   
   def Raketools.gendarme(options={})
     return if not configatron.analysis.enabled 
+    Raketools.prepare_build()
     gendarme_exe = get_tool('gendarme')
     if gendarme_exe == nil
       log(__method__, 'Gendarme not found. Skipping analysis.')
@@ -442,6 +449,7 @@ module Raketools
   
   def Raketools.simian(options={})
     return if not configatron.analysis.enabled 
+    Raketools.prepare_build()
     simian_exe = get_tool('simian')
     if simian_exe == nil
       log(__method__, 'Simian not found. Skipping analysis.')
@@ -515,12 +523,16 @@ module Raketools
   #
   #
   def Raketools.ilmerge(options = {})    
-   
+    Raketools.prepare_build()
     if !options.has_key?(:primary)
         raise "ilmerge: option 'primary' required"
     end
     
     primary = File.join(configatron.dir.build, options[:primary]).to_argpath
+    
+     # determine output
+    output = File.join(configatron.dir.build, options.fetch(:output, "#{File.filename_without_ext(options[:primary])}.Merged#{File.extname(options[:primary])}"))
+    output = output.to_argpath
     
     # determine inputs
     inputs = options[:inputs]    
@@ -529,16 +541,18 @@ module Raketools
         # auto collect inputs
         inputs = Dir.glob(File.join(configatron.dir.build, options[:include_pattern]))
         inputs = inputs - Dir.glob(File.join(configatron.dir.build, options[:exclude_pattern])) if options.has_key?(:exclude_pattern)
+        inputs = inputs
     else
         inputs = inputs.collect { |inp| File.join(configatron.dir.build, inp)}        
     end
-    inputargs = inputs.collect{|inp|inp.to_argpath}.join(' ')
     
-    # determine output
-    output = File.join(configatron.dir.build, options.fetch(:output, "#{File.filename_without_ext(options[:primary])}.Merged#{File.extname(options[:primary])}"))
-    output = output.to_argpath
+    inputs = (inputs.collect{|inp|inp.to_argpath} - [primary, output])
+    log(__method__, "Primary: #{primary}")
+    inputs.each{|i| log(__method__, "Input:   #{i}")}
+    log(__method__, "Output:  #{output}")    
+    log(__method__, "Merging #{1+inputs.length} assemblies to #{output}")
     
-    ilmerge_exe = Raketools.get_tool('ilmerge')
+    ilmerge_exe = Raketools.get_tool('ilmerge')   
     
     if ilmerge_exe.nil?
         raise "Could not find ILMerge.exe"
@@ -548,10 +562,9 @@ module Raketools
     opts = {} if opts.nil?
     switches = make_switches(opts, '/', '=', true)
     
-    ilmerge_cmd = "#{ilmerge_exe} #{switches} /out:#{output} #{primary} #{inputargs}"
-    log(__method__, "Merging #{1+inputs.length} assemblies to #{output}")
-    run ilmerge_cmd
+    ilmerge_cmd = "#{ilmerge_exe} #{switches} /out:#{output} #{primary} #{inputs.join(' ')}"
     
+    run ilmerge_cmd    
   end
   
   def Raketools.get_projects()
