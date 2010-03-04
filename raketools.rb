@@ -535,15 +535,14 @@ module Raketools
     output = output.to_argpath
     
     # determine inputs
-    inputs = options[:inputs]    
+    inputs = options[:inputs]
     if inputs.nil?
         raise "You need to provide an include or a specific include list" if !(options.has_key?(:include_pattern) or options.has_key?(:exclude_pattern))
         # auto collect inputs
-        inputs = Dir.glob(File.join(configatron.dir.build, options[:include_pattern]))
-        inputs = inputs - Dir.glob(File.join(configatron.dir.build, options[:exclude_pattern])) if options.has_key?(:exclude_pattern)
-        inputs = inputs
+        inputs = as_array(options[:include_pattern]).collect{|i| Dir.glob(File.join(configatron.dir.build, i))}.flatten.uniq
+        inputs = inputs - as_array(options[:exclude_pattern]).collect{|i| Dir.glob(File.join(configatron.dir.build, i))}.flatten if options.has_key?(:exclude_pattern)
     else
-        inputs = inputs.collect { |inp| File.join(configatron.dir.build, inp)}        
+        inputs = as_array(inputs).collect { |inp| File.join(configatron.dir.build, inp)}        
     end
     
     inputs = (inputs.collect{|inp|inp.to_argpath} - [primary, output])
@@ -664,6 +663,11 @@ module Raketools
     else
       Kernel.system cmd    
     end
+  end
+  
+  def Raketools.as_array(what)
+    return what if what.kind_of? Array
+    return [what]
   end
   
   # GIT CALLS
