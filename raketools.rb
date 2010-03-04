@@ -560,7 +560,7 @@ module Raketools
     
     opts = options[:switches]
     opts = {} if opts.nil?
-    switches = make_switches(opts, '/', '=', true)
+    switches = make_switches(opts, '=', '/', true)
     
     ilmerge_cmd = "#{ilmerge_exe} #{switches} /out:#{output} #{primary} #{inputs.join(' ')}"
     
