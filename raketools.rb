@@ -246,6 +246,7 @@ module Raketools
           properties[:SignAssembly] = 'true'
           properties[:AssemblyOriginatorKeyFile] = keyfile.to_argpath
           properties[:DelaySign] = configatron.build.delaysign
+          properties[:AdditionalConstants] = 'SIGNED'
         end
       end            
       properties.merge!(options.fetch(:properties, {}))   
@@ -275,7 +276,8 @@ module Raketools
         end        
         propertyargs = properties.collect { |key, value| "/property:#{key}=#{value}" }.join(" ")
         switchargs = make_switches( switches )      
-        run "#{exe.to_argpath} #{solution.to_argpath} #{switchargs} #{propertyargs}" 
+        final_cmd = "#{exe.to_argpath} #{solution.to_argpath} #{switchargs} #{propertyargs}"         
+        run final_cmd
       end      
   end
   
