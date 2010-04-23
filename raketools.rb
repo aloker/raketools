@@ -262,11 +262,17 @@ module Raketools
       loggerpath  = File.join(configatron.dir.tools, 'msbuildlogger', 'Rodemeyer.MsBuildToCCnet.dll')
       enable_logger =  File.exists? (loggerpath)
       log(__method__, "Rodemeyer.MsBuildToCCnet.dll not found. Provide your own logger as a switch.") if not enable_logger
-      framework_dir = File.join(ENV['WINDIR'].dup, 'Microsoft.NET', 'Framework', options.fetch("clr", "v3.5"))      
+      framework_dir = File.join(ENV['WINDIR'].dup, 'Microsoft.NET', 'Framework', options.fetch("clr", "v4.0.30319"))            
       exe = File.join(framework_dir, "msbuild.exe")
       if not File.exists?(exe)
-        raise "Could not find msbuild.exe in #{framework_dir}. Did you provide a valid CLR version number?"
-      end      
+        framework_dir = File.join(ENV['WINDIR'].dup, 'Microsoft.NET', 'Framework', options.fetch("clr", "v3.5"))            
+        exe = File.join(framework_dir, "msbuild.exe")
+        if not File.exists?(exe)
+          raise "Could not find msbuild.exe in #{framework_dir}. Did you provide a valid CLR version number?"
+        end
+      end
+      
+      log(__method__, "MSBuild found at #{exe}")
             
       get_solutions().collect{|k,v| v[:file]}.each do |solution| 
         log(__method__, "Building #{solution}")
