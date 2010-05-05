@@ -82,8 +82,8 @@ module Raketools
     configatron.dir.build = File.join(configatron.dir.output, configatron.dir.build.sub(/^\$\(output\)/, '')) if configatron.dir.build.match(/^\$\(output\)/)
     configatron.dir.reports = File.join(configatron.dir.output, configatron.dir.reports.sub(/^\$\(output\)/, '')) if configatron.dir.reports.match(/^\$\(output\)/)
     toolhash = configatron.tool.to_hash
-    toolhash.each do |k,v|      
-      toolhash[k] = File.join(configatron.dir.tools, toolhash[k].sub(/^\$\(tools\)/, '')) if  toolhash[k].match(/^\$\(tools\)/)
+    toolhash.each do |k,v| 
+	  configatron.tool.send("#{k}=", File.join(configatron.dir.tools, toolhash[k].sub(/^\$\(tools\)/, ''))) if  toolhash[k].match(/^\$\(tools\)/)
     end
   end
   
