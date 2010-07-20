@@ -360,7 +360,7 @@ module Raketools
       return
     end
     
-    projects = Dir.glob(File.join(configatron.dir.source, "*.FxCop"))
+    projects = Dir.glob(File.join(configatron.dir.source, "**", "*.FxCop"))
     if projects.length == 0
      log(__method__, 'No FxCop projects found.')
      return
@@ -399,11 +399,11 @@ module Raketools
       :solutionFiles => solutions,
       :outputXmlFile => report('StyleCop').to_argpath,
       :recurse => true,
-      :ignoreFilePattern => "(([Aa]ssembly|[Vv]ersion)Info\..+)|(.+\.[Dd]esigner\..+)".quote
+      :ignoreFilePattern => "(([Pp]roduct|[Aa]ssembly|[Vv]ersion)Info\..+)|(.+\.[Dd]esigner\..+)".quote
       }
     switches.merge!(options.fetch(:switches, {}))
     switches = make_switches(switches, ' ', '-')
-    cmd = "#{stylecmd_exe.to_argpath} #{switches}"
+    cmd = "#{stylecmd_exe.to_argpath} #{switches}"	
     run cmd    
   end  
   
