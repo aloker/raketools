@@ -44,13 +44,14 @@ module Raketools
 	  :generate =>{ :versioninfohead => ''},
       :test    => { :coverage   => true, 
                     :enabled    => true },
-      :tool    => { :nunit      => '$(tools)/nunit/bin/net-2.0/nunit-console.exe',
+      :tool    => { :nunit      => '$(tools)/nunit/bin/net-2.0/nunit-console-x86.exe',
                     :ncover     => '$(tools)/ncover/ncover.console.exe',
                     :stylecop   => '$(tools)/stylecopcmd/stylecopcmd.exe',
                     :gendarme   => '$(tools)/gendarme/gendarme.exe',
                     :simian     => '$(tools)/simian/bin/simian.exe',
                     :fxcop      => '$(tools)/fxcop/FxCopCmd.exe',
-                    :ilmerge    => '$(tools)/ilmerge/ILMerge.exe'},
+                    :ilmerge    => '$(tools)/ilmerge/ILMerge.exe',
+					:partcover  => '$(tools)/partcover4/PartCover.exe'},
       :analysis => {:enabled    => true },
       :gendarme => {:ignorefile => 'Gendarme.ignore' }    
     }    
@@ -297,10 +298,10 @@ module Raketools
       return
     end
     nunit_exe  = nunit_exe.to_argpath if nunit_exe != nil
-    ncover_exe = Raketools.get_tool('ncover')
-    ncover_exe = ncover_exe.to_argpath if ncover_exe != nil
+    partcover_exe = Raketools.get_tool('partcover')
+    partcover_exe = partcover_exe.to_argpath if partcover_exe != nil
     
-    log(__method__, 'NCover not found. Skipping coverage analysis.') if options.fetch(:coverage, configatron.test.coverage) and ncover_exe.nil?
+    log(__method__, 'PartCover not found. Skipping coverage analysis.') if options.fetch(:coverage, configatron.test.coverage) and partcover_exe.nil?
     
     candidates = get_projects().collect { |k,v| v[:output_path]}.select { |k| k.match(/\.Tests\.dll$/)}    
     if candidates.length == 0
@@ -310,11 +311,12 @@ module Raketools
     candidates.each do |assembly|
       log(__method__, "Running tests in #{assembly}")
       assembly = assembly.to_absolute
-      report_file =  report('NUnit', File.basename(assembly))
+      report_file =  report('NUnit', File.basename(assembly)).to_argpath
             
-      if !options.fetch(:coverage, configatron.test.coverage) || ncover_exe == nil    
+      if !options.fetch(:coverage, configatron.test.coverage) || partcover_exe == nil    
         nunit_switches = { :nologo => true,  
                            :noshadow => true, 
+						   :nodots => true,
                            :domain=>'single', # otherwise we need to copy the NUnit assemblies to output dir
                            :xml => report_file}
         nunit_switches.merge!(options.fetch(:options, {}))
@@ -324,24 +326,27 @@ module Raketools
       else      
          nunit_switches = { :nologo => true,  
                             :noshadow => true, 
-                            :domain=>'none',
+							:nodots => true,
+                            :domain=>'single',
                             :xml => report_file}
         nunit_switches.merge!(options.fetch(:options, {}))
         argstring = make_switches( nunit_switches, '=' )
         nunit_cmd = "#{nunit_exe} #{assembly.to_argpath} #{argstring}"
         
+		test_assembly = File.filename_without_ext(assembly)
+		tested_assembly = test_assembly[0..-(".Tests".length+1)]
         switches = {
-          :x => report('NCover', File.basename(assembly)), # xml output file
-          :ea =>  "CoverageExcludeAttribute",  # exclude attribute
-          :reg => true, # register component
-          :a => [File.filename_without_ext(assembly), File.filename_without_ext(assembly)[0..-(".Tests".length+1)]].join(';'),
-          :v => configatron.build.verbose == true, # verbose
-          :q => true # quiet (no Coverage.log)
+		  "log" => 0,
+		  "target" => nunit_exe,
+		  "target-work-dir" => configatron.dir.build.to_argpath,
+		  "target-args" => "#{assembly.to_argpath} #{argstring}".quote,
+		  :output => report('Coverage', File.basename(assembly)),
+		  :include => ["[#{test_assembly}]*", "[#{tested_assembly}]*"]
           }
         switches.merge!(options.fetch(:coverage_options, {}))
-        argstring = make_switches( switches, ' ', '//' )
-        cmd = "#{ncover_exe} #{nunit_cmd} #{argstring}"
-        run cmd        
+        argstring = make_switches( switches, ' ', '--' )
+        cmd = "#{partcover_exe} #{argstring}"
+		run cmd        		
       end             
     end
   end
@@ -719,7 +724,7 @@ end
 
 class String
   def quote()
-    "\"#{self}\""
+    "\"#{self.gsub(/\"/, '\\"')}\""
   end
   
   def to_argpath()
