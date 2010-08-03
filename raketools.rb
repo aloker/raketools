@@ -58,7 +58,7 @@ module Raketools
     
     configatron.configure_from_hash(defaults)        
     load_config(ENV.fetch('RT_PROJECTCONFIG', 'raketools-config.yml'), environment)
-    load_config(ENV.fetch('RT_LOCALCONFIG', 'local-config.yml'), environment)    
+    load_config(ENV.fetch('RT_LOCALCONFIG', 'local-config.yml'), environment)    	
     sync_config_with_env(configatron)    
     resolve_version()            
     resolve_variables()  
@@ -87,25 +87,32 @@ module Raketools
 	  configatron.tool.send("#{k}=", File.join(configatron.dir.tools, toolhash[k].sub(/^\$\(tools\)/, ''))) if  toolhash[k].match(/^\$\(tools\)/)
     end
   end
-  
+ 
   def Raketools.sync_config_with_env(cfg)
     hash = cfg.to_hash
-    hash.each do |k,v|
-      if v.kind_of? Configatron::Store
-        sync_config_with_env(v)
-      else      
-        hier = cfg.heirarchy.upcase
-        hier = hier + "_" if hier.length > 0
-        key = "RT_#{hier}#{k.upcase}".gsub(/\./, '_')        
-        value = ENV.fetch(key, nil)
-        if not value.nil?
-          if v.kind_of? TrueClass or v.kind_of? FalseClass 
-            value = value.to_b
-          end
-          puts "Overriding #{k}"
-          hash[k] = value
-        end
-      end
+	sync_config_with_env_vars(hash, "")
+	cfg.configure_from_hash(hash)
+  end
+  
+  def Raketools.sync_config_with_env_vars(hash, hierarchy)
+    hash.each do |k,v|		
+		if v.kind_of? Hash			
+			hier = hierarchy
+			hier = hier + "_" if hier.length > 0			
+			sync_config_with_env_vars(v, hier + k)
+		else			
+			hier = hierarchy.upcase
+			hier = hier + "_" if hier.length > 0
+			key = "RT_#{hier}#{k.upcase}".gsub(/\./, '_')        			
+			value = ENV.fetch(key, nil)
+			if not value.nil?
+			  if v.kind_of? TrueClass or v.kind_of? FalseClass 
+				value = value.to_b
+			  end
+			  log(__method__, "Overriding #{hierarchy}.#{k}")
+			  hash[k] = value
+			end
+		end			
     end
   end  
   
