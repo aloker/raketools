@@ -99,7 +99,7 @@ module Raketools
 		if v.kind_of? Hash			
 			hier = hierarchy
 			hier = hier + "_" if hier.length > 0			
-			sync_config_with_env_vars(v, hier + k)
+			sync_config_with_env_vars(v, hier + k.to_s)
 		else			
 			hier = hierarchy.upcase
 			hier = hier + "_" if hier.length > 0
